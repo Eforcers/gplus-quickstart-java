@@ -348,7 +348,11 @@ public class Signin {
     }
   }
   
-  
+  /**
+   * servlet que consume los usuarios del dominio
+   * @author carlos.prieto
+   *
+   */
   public static class AccountServlet extends HttpServlet {
 	    @Override
 	    protected void doGet(HttpServletRequest request, HttpServletResponse response)
