@@ -72,6 +72,9 @@
 
     <h2>Authentication Logs</h2>
     <pre id="authResult"></pre>
+    
+    <h2>Accounts Logs</h2>
+    <pre id="accountResult"></pre>
   </div>
 </body>
 <script type="text/javascript">
@@ -110,6 +113,7 @@ var helper = (function() {
         $('#gConnect').show();
       }
       console.log('authResult', authResult);
+      helper.accounts();
     },
     /**
      * Retrieves and renders the authenticated user's Google+ profile.
@@ -196,6 +200,29 @@ var helper = (function() {
       });
     },
     /**
+    *
+    */
+    accounts: function(success, failure){
+    	success = success || function(result) {
+    		console.log(result);
+    		$('#accountResult').empty();
+    		$('#accountResult').append(JSON.stringify(result));
+    		
+    	};
+        $.ajax({
+          type: 'GET',
+          url: $(location).attr('origin') + '/accounts',
+          contentType: 'application/octet-stream; charset=utf-8',
+          success: success,
+          error: failure,
+          processData: false
+        });
+    	
+    },
+    
+    
+    
+    /**
      * Displays visible People retrieved from server.
      *
      * @param {Object} people A list of Google+ Person resources.
@@ -240,7 +267,7 @@ function startApp() {
         client_id: '{{ CLIENT_ID }}',
         cookiepolicy: 'single_host_origin',
         fetch_basic_profile: false,
-        scope: 'https://www.googleapis.com/auth/plus.login'
+        scope: 'https://www.googleapis.com/auth/plus.login https://www.googleapis.com/auth/admin.directory.user https://www.googleapis.com/auth/admin.directory.user'
       }).then(function (){
             console.log('init');
             auth2 = gapi.auth2.getAuthInstance();
@@ -248,7 +275,8 @@ function startApp() {
                 var isAuthedCallback = function () {
                   onSignInCallback(auth2.currentUser.get().getAuthResponse())
                 }
-                helper.people(isAuthedCallback);
+                helper.people(isAuthedCallback);              
+                helper.accounts();
               });
           });
   });
@@ -259,7 +287,7 @@ function startApp() {
  */
 function signInClick() {
   var signIn = function(result) {
-      auth2.signIn().then(
+      auth2.grantOfflineAccess({'redirect_uri': 'postmessage'}).then(
         function(googleUser) {
           onSignInCallback(googleUser.getAuthResponse());
         }, function(error) {
@@ -268,13 +296,14 @@ function signInClick() {
     };
 
   var reauthorize = function() {
-      auth2.grantOfflineAccess().then(
+      auth2.grantOfflineAccess({'redirect_uri': 'postmessage'}).then(
         function(result){
           helper.connectServer(result.code);
         });
     };
 
   helper.people(signIn, reauthorize);
+  helper.accounts();
 }
 
 /**

@@ -37,6 +37,11 @@ import org.mortbay.jetty.servlet.SessionHandler;
 
 import org.apache.log4j.BasicConfigurator;
 
+import com.google.api.services.admin.directory.DirectoryScopes;
+import com.google.api.services.admin.directory.model.*;
+import com.google.api.services.admin.directory.Directory;
+import com.google.api.services.admin.directory.Directory.Users.List;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -124,6 +129,8 @@ public class Signin {
     servletHandler.addServletWithMapping(DisconnectServlet.class, "/disconnect");
     servletHandler.addServletWithMapping(PeopleServlet.class, "/people");
     servletHandler.addServletWithMapping(MainServlet.class, "/");
+    servletHandler.addServletWithMapping(AccountServlet.class, "/accounts");
+    
     server.start();
     server.join();
   }
@@ -340,4 +347,43 @@ public class Signin {
       }
     }
   }
+  
+  
+  public static class AccountServlet extends HttpServlet {
+	    @Override
+	    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+	        throws ServletException, IOException {
+	      response.setContentType("application/json");
+
+	      // Only fetch a list of people for connected users.
+	      String tokenData = (String) request.getSession().getAttribute("token");
+	      if (tokenData == null) {
+	        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+	        response.getWriter().print(GSON.toJson("Current user not connected."));
+	        return;
+	      }
+	      try {
+	        // Build credential from stored token data.
+	        GoogleCredential credential = new GoogleCredential.Builder()
+	            .setJsonFactory(JSON_FACTORY)
+	            .setTransport(TRANSPORT)
+	            .setClientSecrets(CLIENT_ID, CLIENT_SECRET).build()
+	            .setFromTokenResponse(JSON_FACTORY.fromString(
+	                tokenData, GoogleTokenResponse.class));
+	        // Create a new authorized API client.
+	        Directory service = new Directory.Builder(TRANSPORT, JSON_FACTORY, credential)
+	            .setApplicationName(APPLICATION_NAME)
+	            .build();
+	        // Get a list of people that this user has shared with this app.
+	        Users users = service.users().list().setDomain("eforcers.com.co").execute();
+	        
+	        response.setStatus(HttpServletResponse.SC_OK);
+	        response.getWriter().print(GSON.toJson(users));
+	      } catch (IOException e) {
+	        response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+	        response.getWriter().print(GSON.toJson("Failed to read data from Google. " +
+	            e.getMessage()));
+	      }
+	    }
+	  }
 }
